@@ -1,0 +1,17 @@
+{
+  "name": "kiai-web",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/mediamonks/kiai-web.git",
+  "author": "Richard Heuser <richard.heuser@mediamonks.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^5.12.0",
+    "prettier": "^1.15.3",
+    "tslint": "^5.12.0",
+    "typescript": "^3.2.2"
+  },
+  "dependencies": {
+    "nanoid": "^2.0.0"
+  }
+}
