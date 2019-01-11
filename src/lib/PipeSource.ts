@@ -1,4 +1,4 @@
-import { IPipeDestination } from './IPipeDestination';
+import { IPipeDestination } from './types';
 
 export abstract class PipeSource {
   private destinations: IPipeDestination[] = [];
@@ -8,7 +8,7 @@ export abstract class PipeSource {
     return destination as PipeSource & IPipeDestination;
   }
   
-  protected publish(data: any) {
+  protected publish(data: any): void {
     this.destinations.forEach(destination => {
       destination.receive(data);
     });

@@ -52,11 +52,11 @@ export default class Recorder extends PipeSource {
       });
   }
 
-  public start() {
+  public start(): void {
     this.isRecording = true;
   }
 
-  public stop() {
+  public stop(): void {
     this.isRecording = false;
   }
 }

@@ -1,14 +1,16 @@
 import Recorder from './Recorder';
 import Streamer from './Streamer';
-import { Converter } from './Converter';
-import { IPipeDestination } from './IPipeDestination';
+import Converter from './Converter';
 import Matcher from './Matcher';
+import { IPipeDestination, TIntents } from './types';
 
 type TVoiceInputOptions = {
   projectId: string;
   host: string;
   port?: number;
-  intents: any; // TODO: TIntents
+  language?: string;
+  intents: TIntents;
+  sampleRate?: number;
 };
 
 export default class VoiceInput implements IPipeDestination {
@@ -20,14 +22,21 @@ export default class VoiceInput implements IPipeDestination {
   private resolver: (intent: string) => void;
 
   constructor(options: TVoiceInputOptions) {
-    this.recorder = new Recorder();
+    this.recorder = new Recorder({
+      sampleRate: options.sampleRate,
+    });
     this.streamer = new Streamer({
       host: options.host,
       port: options.port,
       projectId: options.projectId,
+      language: options.language,
+      sampleRate: options.sampleRate,
     });
     this.converter = new Converter();
-    this.matcher = new Matcher(options.intents);
+    this.matcher = new Matcher({
+      intents: options.intents,
+      language: options.language,
+    });
 
     this.recorder
       .pipe(this.converter)
@@ -50,11 +59,16 @@ export default class VoiceInput implements IPipeDestination {
       this.resolver(intent);
       this.resolver = undefined;
     }
-    this.stop();
+    this.stopListening();
   }
 
-  public stop(): void {
+  public stopListening(): void {
     this.recorder.stop();
     this.streamer.stop();
+  }
+
+  public setLanguage(language: string): void {
+    this.streamer.setLanguage(language);
+    this.matcher.setLanguage(language);
   }
 }

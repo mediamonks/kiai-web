@@ -1,6 +1,6 @@
 import nanoid from 'nanoid';
 import { PipeSource } from './PipeSource';
-import { IPipeDestination } from './IPipeDestination';
+import { IPipeDestination } from './types';
 
 export type TResponse = {
   transcript?: string;
@@ -11,6 +11,8 @@ type TStreamerOptions = {
   host?: string;
   port?: number;
   projectId?: string;
+  language?: string;
+  sampleRate?: number;
 };
 
 type TCommand = 'start' | 'stop';
@@ -24,6 +26,8 @@ const COMMAND: { [key: string]: TCommand } = {
 
 const defaultOptions: TStreamerOptions = {
   port: 6060,
+  language: 'en',
+  sampleRate: 44100,
 };
 
 const reconnectTimeout = 2000;
@@ -31,6 +35,9 @@ const reconnectTimeout = 2000;
 export default class Streamer extends PipeSource implements IPipeDestination {
   private readonly url: string;
   private readonly projectId: string;
+  private readonly sampleRate: number;
+
+  private language: string;
 
   private ws: WebSocket;
 
@@ -49,6 +56,7 @@ export default class Streamer extends PipeSource implements IPipeDestination {
 
     this.url = `ws://${options.host}:${options.port}`;
     this.projectId = options.projectId;
+    this.sampleRate = options.sampleRate;
 
     this.connect();
   }
@@ -57,25 +65,34 @@ export default class Streamer extends PipeSource implements IPipeDestination {
     return this.ws && this.ws.readyState === WebSocket.OPEN;
   }
 
-  public receive(chunk: ArrayBuffer) {
+  public receive(chunk: ArrayBuffer): void {
     if (this.isOpen) {
       this.sendBuffer(chunk);
     }
   }
 
-  public start() {
-    this.sendCommand(COMMAND.START, { sessionId: nanoid(), projectId: this.projectId });
+  public start(): void {
+    this.sendCommand(COMMAND.START, {
+      sessionId: nanoid(), // TODO: generate on backend
+      projectId: this.projectId,
+      language: this.language,
+      sampleRate: this.sampleRate,
+    });
   }
 
-  public stop() {
+  public stop(): void {
     this.sendCommand(COMMAND.STOP);
   }
 
-  public close() {
+  public close(): void {
     if (this.isOpen) this.ws.close();
   }
+  
+  public setLanguage(language: string): void {
+    this.language = language;
+  }
 
-  private connect() {
+  private connect(): void {
     this.close();
 
     this.ws = new WebSocket(this.url);
@@ -95,16 +112,16 @@ export default class Streamer extends PipeSource implements IPipeDestination {
       }, reconnectTimeout);
     };
   }
-  
-  private send(data: any) {
+
+  private send(data: any): void {
     if (this.isOpen) this.ws.send(data);
   }
-  
-  private sendCommand(command: TCommand, payload?: TPayload) {
+
+  private sendCommand(command: TCommand, payload?: TPayload): void {
     this.send(JSON.stringify({ command, payload }));
   }
 
-  private sendBuffer(data: ArrayBuffer) {
+  private sendBuffer(data: ArrayBuffer): void {
     this.send(data);
   }
 }

@@ -1,7 +1,7 @@
 import { PipeSource } from './PipeSource';
 import { IPipeDestination } from './IPipeDestination';
 
-export class Converter extends PipeSource implements IPipeDestination {
+export default class Converter extends PipeSource implements IPipeDestination {
   public receive(buffer: Float32Array) {
     this.publish(this.convert(buffer));
   }
