@@ -1,4 +1,3 @@
-import nanoid from 'nanoid';
 import { PipeSource } from './PipeSource';
 import { IPipeDestination } from './IPipeDestination';
 
@@ -11,6 +10,8 @@ type TStreamerOptions = {
   host?: string;
   port?: number;
   projectId?: string;
+  sampleRate?: number;
+  languageCode?: string;
 };
 
 type TCommand = 'start' | 'stop';
@@ -24,6 +25,8 @@ const COMMAND: { [key: string]: TCommand } = {
 
 const defaultOptions: TStreamerOptions = {
   port: 6060,
+  sampleRate: 44100,
+  languageCode: 'en-US',
 };
 
 const reconnectTimeout = 2000;
@@ -31,6 +34,8 @@ const reconnectTimeout = 2000;
 export default class Streamer extends PipeSource implements IPipeDestination {
   private readonly url: string;
   private readonly projectId: string;
+  private readonly sampleRate: number;
+  private readonly languageCode: string;
 
   private ws: WebSocket;
 
@@ -49,6 +54,8 @@ export default class Streamer extends PipeSource implements IPipeDestination {
 
     this.url = `ws://${options.host}:${options.port}`;
     this.projectId = options.projectId;
+    this.sampleRate = options.sampleRate;
+    this.languageCode = options.languageCode;
 
     this.connect();
   }
@@ -64,7 +71,12 @@ export default class Streamer extends PipeSource implements IPipeDestination {
   }
 
   public start() {
-    this.sendCommand(COMMAND.START, { sessionId: nanoid(), projectId: this.projectId });
+    this.sendCommand(COMMAND.START, {
+      projectId: this.projectId,
+      sampleRateHertz: this.sampleRate,
+      languageCode: this.languageCode,
+      context: '',
+    });
   }
 
   public stop() {
@@ -95,11 +107,11 @@ export default class Streamer extends PipeSource implements IPipeDestination {
       }, reconnectTimeout);
     };
   }
-  
+
   private send(data: any) {
     if (this.isOpen) this.ws.send(data);
   }
-  
+
   private sendCommand(command: TCommand, payload?: TPayload) {
     this.send(JSON.stringify({ command, payload }));
   }
