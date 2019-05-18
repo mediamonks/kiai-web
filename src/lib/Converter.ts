@@ -1,5 +1,5 @@
-import { PipeSource } from './PipeSource';
-import { IPipeDestination } from './IPipeDestination';
+import PipeSource from './PipeSource';
+import { IPipeDestination } from './types';
 
 export default class Converter extends PipeSource implements IPipeDestination {
   public receive(buffer: Float32Array) {

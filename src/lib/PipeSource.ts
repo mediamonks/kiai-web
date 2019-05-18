@@ -1,6 +1,6 @@
 import { IPipeDestination } from './types';
 
-export abstract class PipeSource {
+export default abstract class PipeSource {
   private destinations: IPipeDestination[] = [];
   
   public pipe(destination: IPipeDestination): PipeSource {

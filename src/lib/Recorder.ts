@@ -1,4 +1,4 @@
-import { PipeSource } from './PipeSource';
+import PipeSource from './PipeSource';
 
 type TRecorderOptions = {
   bufferSize?: number;
@@ -14,48 +14,54 @@ const defaultOptions: TRecorderOptions = {
 
 export default class Recorder extends PipeSource {
   private readonly audioContext: AudioContext;
-  private readonly analyser: AnalyserNode;
   private readonly scriptProcessor: ScriptProcessorNode;
-
+  
   private isRecording: boolean = false;
-
+  
   constructor(options: TRecorderOptions = {}) {
     super();
     
-    options = { ...defaultOptions, ...options };
-
+    const opts = { ...defaultOptions, ...options };
+    
     this.audioContext = new AudioContext();
-    this.analyser = this.audioContext.createAnalyser();
-    this.scriptProcessor = this.audioContext.createScriptProcessor(options.bufferSize, 1, 1);
+    
+    const analyser = this.audioContext.createAnalyser();
+    
+    this.scriptProcessor = this.audioContext.createScriptProcessor(opts.bufferSize, 1, 1);
     this.isRecording = false;
-
+    
     this.scriptProcessor.onaudioprocess = event => {
-      if (this.isRecording) this.publish(event.inputBuffer.getChannelData(0));
+      if (!this.isRecording) return;
+
+      const audio = event.inputBuffer.getChannelData(0);
+      
+      this.publish(audio);
     };
-
+    
     this.scriptProcessor.connect(this.audioContext.destination);
-
+    
     navigator.mediaDevices
       .getUserMedia({
         audio: {
-          sampleRate: options.sampleRate,
-          channelCount: options.channelCount,
+          sampleRate: opts.sampleRate,
+          channelCount: opts.channelCount,
         },
       })
       .then(micStream => {
         const micSource = this.audioContext.createMediaStreamSource(micStream);
         micSource.connect(this.scriptProcessor);
-        micSource.connect(this.analyser);
+        micSource.connect(analyser);
       })
       .catch(err => {
+        // tslint:disable-next-line no-console
         console.error(err);
       });
   }
-
+  
   public start(): void {
     this.isRecording = true;
   }
-
+  
   public stop(): void {
     this.isRecording = false;
   }

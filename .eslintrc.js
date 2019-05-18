@@ -1,48 +1,41 @@
+// https://eslint.org/docs/user-guide/configuring
+
 module.exports = {
 	root: true,
 	parserOptions: {
-		sourceType: 'module',
+		parser: 'babel-eslint'
 	},
 	env: {
-		browser: false,
+		browser: true
 	},
-	extends: ['airbnb-base', 'prettier'],
-	plugins: ['import', 'prettier'],
-	settings: {
-		'import/resolver': {
-			node: true,
-			typescript: true,
-		},
-	},
+	extends: [
+		// https://github.com/vuejs/eslint-plugin-vue#priority-a-essential-error-prevention
+		// consider switching to `plugin:vue/strongly-recommended` or `plugin:vue/recommended` for stricter rules.
+		'standard',
+		'plugin:vue/recommended',
+	],
+	// required to lint *.vue files
+	plugins: [
+		'vue'
+	],
+	// add your custom rules here
 	rules: {
-		'import/extensions': [
-			'error',
-			'always',
-			// hide known extensions that are resolved by webpack
-			{
-				js: 'never',
-				ts: 'never',
-			},
-		],
-		'global-require': 'off',
-		// prettier compatibility
-		'max-len': 0,
-		'prettier/prettier': [
-			'error',
-			{
-				singleQuote: true,
-				trailingComma: 'all',
-				printWidth: 100,
-				tabWidth: 2,
-				useTabs: false,
-			},
-		],
-		// only for use with getter-setters
-		'no-underscore-dangle': 0,
-		'no-param-reassign': 0,
-		'no-plusplus': 0,
-		// to correctly work on windows with some tools that create windows line-endings
-		// this will be correct by git when committed
-		'linebreak-style': 0,
-	},
+		// allow async-await
+		'generator-star-spacing': 'off',
+		// allow debugger during development
+		'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
+		'indent': 'off',
+		'indent-legacy': ['error', 'tab'],
+		'no-tabs': 'off',
+		'semi': ['error', 'always'],
+		'space-before-function-paren': ['error', {
+			'anonymous': 'always',
+			'named': 'never',
+			'asyncArrow': 'always'
+		}],
+		'no-mixed-spaces-and-tabs': 'off',
+		'no-trailing-spaces': 'off',
+		'no-mixed-operators': 'off',
+		'comma-dangle': 'off',
+	}
 };

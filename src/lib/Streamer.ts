@@ -1,5 +1,5 @@
 import nanoid from 'nanoid';
-import { PipeSource } from './PipeSource';
+import PipeSource from './PipeSource';
 import { IPipeDestination } from './types';
 
 export type TResponse = {
@@ -38,7 +38,6 @@ export default class Streamer extends PipeSource implements IPipeDestination {
   private readonly sampleRate: number;
 
   private language: string;
-
   private ws: WebSocket;
 
   constructor(options: TStreamerOptions = {}) {

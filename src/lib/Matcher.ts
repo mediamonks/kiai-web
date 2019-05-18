@@ -1,5 +1,5 @@
 import { sample } from 'lodash';
-import { PipeSource } from './PipeSource';
+import PipeSource from './PipeSource';
 import { IPipeDestination, TIntents } from './types';
 
 export default class Matcher extends PipeSource implements IPipeDestination {
