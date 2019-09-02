@@ -28,7 +28,7 @@
 				"compression-webpack-plugin": "~2.0",
 				"cross-env": "~5.2",
 				"css-loader": "~2.1",
-				"eslint": "~5.16",
+				"eslint": "^6.3.0",
 				"eslint-config-standard": "~10.2",
 				"eslint-friendly-formatter": "~3.0",
 				"eslint-loader": "~2.1",
@@ -59,7 +59,7 @@
 		},
 		"dependencies": {
 				"@babel/polyfill": "~7.2",
-				"lodash": "^4.17.11",
+				"lodash": "^4.17.15",
 				"nanoid": "^2.0.0",
 				"vue": "^2.6.10",
 				"vue-router": "^3.0.1",
