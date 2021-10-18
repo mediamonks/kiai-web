@@ -1,13 +1,22 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es6",
     "module": "esNext",
     "moduleResolution": "node",
     "sourceMap": true,
     "noImplicitAny": true,
     "resolveJsonModule": true,
     "lib": ["es7", "dom", "dom.iterable", "scripthost"],
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+	  "baseUrl": "./src/",
+	  "rootDir": "./src/",
+	  "outDir": "./dist/",
+	  "forceConsistentCasingInFileNames": true,
+	  "noImplicitReturns": true,
+	  "noImplicitThis": true,
+	  "noUnusedLocals": true,
+	  "pretty": true,
+	  "esModuleInterop": true
   },
-  "exclude": ["node_modules"]
+	"include": ["./src/**/*"]
 }
