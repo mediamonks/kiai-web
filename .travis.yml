@@ -1,6 +1,9 @@
-language: javascript
+language: node_js
 
 cache: npm
+
+node_js:
+  - 14
 
 deploy:
   - provider: npm
