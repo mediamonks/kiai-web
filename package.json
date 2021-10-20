@@ -12,8 +12,7 @@
 		"build:ts": "tsc",
 		"prepare": "npm run build",
 		"lint": "npm-run-all lint:*",
-		"lint:es": "eslint src/**/*",
-		"lint:ts": "tslint src/**/*.ts -p tsconfig.json"
+		"lint:es": "eslint src/**/*"
 	},
 	"devDependencies": {
 		"@types/lodash": "^4.14.175",
@@ -22,7 +21,6 @@
 		"@typescript-eslint/parser": "^5.0.0",
 		"eslint": "^7.32.0",
 		"npm-run-all": "^4.1.5",
-		"tslint": "^6.1.3",
 		"typescript": "^4.4.3"
 	},
 	"dependencies": {
@@ -34,6 +32,6 @@
 		"pitchfinder": "^2.3.1"
 	},
 	"engines": {
-		"node": "14"
+		"node": ">=14"
 	}
 }
