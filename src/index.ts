@@ -14,7 +14,6 @@ import { default as Streamer } from './lib/Streamer';
 import { default as Transcriber } from './lib/Transcriber';
 import { default as Trigger } from './lib/Trigger';
 import { default as Vocalizer } from './lib/Vocalizer';
-import { default as VocalizerV2 } from './lib/VocalizerV2';
 import { default as VoiceInput } from './lib/VoiceInput';
 
 export const Nodes = {
@@ -34,7 +33,6 @@ export const Nodes = {
 	Transcriber,
 	Trigger,
 	Vocalizer,
-	VocalizerV2,
 	VoiceInput,
 };
 
