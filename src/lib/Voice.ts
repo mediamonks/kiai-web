@@ -5,33 +5,20 @@ import AudioPlayer from './AudioPlayer';
 // @ts-ignore
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
-const audioContext = new AudioContext();
-
-
-function unlockAudioContext() {
-	if (!audioContext || audioContext.state !== 'suspended') return;
-
-	const { body } = document;
-	const events = ['touchstart', 'touchend', 'mousedown', 'keydown'];
-
-	async function unlock() {
-		await audioContext.resume();
-		events.forEach(event => body.removeEventListener(event, unlock));
-	}
-
-	events.forEach(event => body.addEventListener(event, unlock, false));
-}
-
 export default class Voice {
-	private audioPlayer: AudioPlayer = new AudioPlayer({ audioContext });
+	private audioPlayer: AudioPlayer;
 	private vocalizer: Vocalizer = null;
-	// private options: any = {};
 	private cache: { [hash: string]: AudioBuffer | Promise<AudioBuffer> } = {};
+	private audioContext: AudioContext;
 
 	constructor(options: { [key: string]: any }) {
-		// this.options = options;
-		this.vocalizer = new Vocalizer({ ...options, audioContext });
-		unlockAudioContext();
+		this.audioContext = new AudioContext();
+
+		this.vocalizer = new Vocalizer({ ...options, audioContext: this.audioContext });
+
+		this.audioPlayer = new AudioPlayer({ audioContext: this.audioContext });
+
+		this.unlockAudioContext();
 	}
 
 	public preload(
@@ -85,5 +72,21 @@ export default class Voice {
 		// console.debug('[VOICE] cache released');
 		this.cache = {};
 		return this;
+	}
+
+	private unlockAudioContext() {
+		const { audioContext } = this;
+
+		if (!audioContext || audioContext.state !== 'suspended') return;
+
+		const { body } = document;
+		const events = ['touchstart', 'touchend', 'mousedown', 'keydown'];
+
+		async function unlock() {
+			await audioContext.resume();
+			events.forEach(event => body.removeEventListener(event, unlock));
+		}
+
+		events.forEach(event => body.addEventListener(event, unlock, false));
 	}
 }

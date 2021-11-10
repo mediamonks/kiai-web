@@ -4,7 +4,6 @@ type TRecorderOptions = {
 	bufferSize?: number;
 	sampleRate?: number;
 	channelCount?: number;
-	audioContext?: AudioContext;
 };
 
 const defaultOptions: TRecorderOptions = {
@@ -14,55 +13,43 @@ const defaultOptions: TRecorderOptions = {
 };
 
 export default class Recorder extends PipeSource {
-	private readonly audioContext: AudioContext;
-	private readonly scriptProcessor: ScriptProcessorNode;
-
+	private readonly options: TRecorderOptions;
 	private isRecording: boolean = false;
+	private micStream: MediaStream;
+	private mediaRecorder: MediaRecorder;
 
 	constructor(options: TRecorderOptions = {}) {
 		super();
 
-		const opts = { ...defaultOptions, ...options };
-
-		this.audioContext = opts.audioContext || new AudioContext();
-
-		const analyser = this.audioContext.createAnalyser();
-
-		this.scriptProcessor = this.audioContext.createScriptProcessor(opts.bufferSize, 1, 1);
-		this.isRecording = false;
-
-		this.scriptProcessor.onaudioprocess = event => {
-			if (!this.isRecording) return;
-
-			const audio = event.inputBuffer.getChannelData(0);
-
-			this.publish(audio);
-		};
-
-		this.scriptProcessor.connect(this.audioContext.destination);
-
-		navigator.mediaDevices
-			.getUserMedia({
-				audio: {
-					sampleRate: opts.sampleRate,
-					channelCount: opts.channelCount,
-				},
-			})
-			.then(micStream => {
-				const micSource = this.audioContext.createMediaStreamSource(micStream);
-				micSource.connect(this.scriptProcessor);
-				micSource.connect(analyser);
-			})
-			.catch(error => {
-				throw new Error(error);
-			});
+		this.options = { ...defaultOptions, ...options };
 	}
 
-	public start(): void {
+	public async start(): Promise<void> {
+		if (!this.micStream) {
+			this.micStream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					sampleRate: this.options.sampleRate,
+					channelCount: this.options.channelCount,
+				},
+			});
+		}
+
+		if (!this.mediaRecorder) {
+			this.mediaRecorder = new MediaRecorder(this.micStream);
+
+			this.mediaRecorder.ondataavailable = event => {
+				if (!this.isRecording) return;
+				this.publish(event.data);
+			};
+		}
+
+		this.mediaRecorder.start();
 		this.isRecording = true;
 	}
 
 	public stop(): void {
+		if (!this.mediaRecorder) return;
+		this.mediaRecorder.stop();
 		this.isRecording = false;
 	}
 }
