@@ -32,13 +32,23 @@ export default class Recorder extends PipeSource {
 		});
 	}
 
-	public async start(): Promise<void> {
-		async function decodeAudio(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
-			const ctx = new AudioContext();
-			const decodedAudio = await ctx.decodeAudioData(arrayBuffer, (audioBuffer) => audioBuffer);
-			return decodedAudio;
-		}
+	private setAudioBufferFromBlob(data: Blob) {
+		const ctx = new AudioContext();
+		const request = new XMLHttpRequest();
+		const url = URL.createObjectURL(data);
+		request.open('GET', url, true);
+		request.responseType = 'arraybuffer';
+		request.onload = async () => {
+			console.debug('response:', request.response);
+			this.buffer = await ctx.decodeAudioData(
+				request.response.slice(0),
+				(audioBuffer) => audioBuffer,
+			);
+		};
+		request.send();
+	}
 
+	public async start(): Promise<void> {
 		if (!this.micStream) {
 			this.micStream = await navigator.mediaDevices.getUserMedia({
 				video: false,
@@ -54,18 +64,9 @@ export default class Recorder extends PipeSource {
 				mimeType: 'audio/webm;codecs=opus',
 			});
 
-			this.mediaRecorder.ondataavailable = async (event) => {
+			this.mediaRecorder.ondataavailable = (event) => {
 				if (!this.isRecording) return;
-				const request = new XMLHttpRequest();
-				const url = URL.createObjectURL(event.data);
-				request.open('GET', url, true);
-				request.responseType = 'arraybuffer';
-				// eslint-disable-next-line require-atomic-updates
-				request.onload = async () => {
-					console.debug('response:', request.response);
-					this.buffer = await decodeAudio(request.response.slice(0));
-				};
-				request.send();
+				this.setAudioBufferFromBlob(event.data);
 				console.debug('buffer:', this.buffer);
 				this.publish(this.buffer.getChannelData(0));
 			};
