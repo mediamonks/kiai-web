@@ -1,3 +1,4 @@
+/* eslint-disable max-statements */
 /* eslint-disable max-len */
 import PipeSource from './PipeSource';
 
@@ -19,33 +20,19 @@ export default class Recorder extends PipeSource {
 	private readonly options: TRecorderOptions;
 	private isRecording: boolean = false;
 	private micStream: MediaStream;
-	private mediaRecorder: MediaRecorder;
-	private buffer: AudioBuffer;
+	private animationID: number;
 
 	constructor(options: TRecorderOptions = {}) {
 		super();
 
 		this.options = { ...defaultOptions, ...options };
-		this.buffer = new AudioBuffer({
-			length: this.options.bufferSize,
-			sampleRate: this.options.sampleRate,
-		});
 	}
 
-	private setAudioBufferFromBlob(data: Blob) {
-		const ctx = new AudioContext();
-		const request = new XMLHttpRequest();
-		const url = URL.createObjectURL(data);
-		request.open('GET', url, true);
-		request.responseType = 'arraybuffer';
-		request.onload = async () => {
-			console.debug('response:', request.response);
-			this.buffer = await ctx.decodeAudioData(
-				request.response.slice(0),
-				(audioBuffer) => audioBuffer,
-			);
-		};
-		request.send();
+	private listen(analyser: AnalyserNode, data: Float32Array) {
+		analyser.getFloatFrequencyData(data);
+		const positiveData = data.map((frequency) => Math.abs(frequency) / 200);
+		this.publish(positiveData);
+		this.animationID = requestAnimationFrame(() => this.listen(analyser, data));
 	}
 
 	public async start(): Promise<void> {
@@ -58,31 +45,21 @@ export default class Recorder extends PipeSource {
 				},
 			});
 		}
-
-		if (!this.mediaRecorder && this.micStream) {
-			this.mediaRecorder = new MediaRecorder(this.micStream, {
-				mimeType: 'audio/webm;codecs=opus',
-			});
-
-			this.mediaRecorder.ondataavailable = (event) => {
-				if (!this.isRecording) return;
-				this.setAudioBufferFromBlob(event.data);
-				console.debug('buffer:', this.buffer);
-				this.publish(this.buffer.getChannelData(0));
-			};
-		}
-
 		if (!this.isRecording) {
-			this.mediaRecorder.start(this.options.publishFrequency);
-			this.isRecording = true;
+			const context = new AudioContext();
+			const source = context.createMediaStreamSource(this.micStream);
+			const analyser = context.createAnalyser();
+			const data = new Float32Array(analyser.frequencyBinCount);
+			analyser.fftSize = this.options.bufferSize * 2;
+			analyser.maxDecibels = 0;
+			source.connect(analyser);
+			this.animationID = requestAnimationFrame(() => this.listen(analyser, data));
 		}
+		this.isRecording = true;
 	}
 
 	public stop(): void {
-		if (!this.mediaRecorder) return;
-		if (this.isRecording) {
-			this.mediaRecorder.stop();
-		}
+		cancelAnimationFrame(this.animationID);
 		this.isRecording = false;
 	}
 }
