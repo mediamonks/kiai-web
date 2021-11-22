@@ -51,7 +51,6 @@ export default class Recorder extends PipeSource {
 			const analyser = context.createAnalyser();
 			const data = new Float32Array(analyser.frequencyBinCount);
 			analyser.fftSize = this.options.bufferSize * 2;
-			analyser.maxDecibels = 0;
 			source.connect(analyser);
 			this.animationID = requestAnimationFrame(() => this.listen(analyser, data));
 		}
