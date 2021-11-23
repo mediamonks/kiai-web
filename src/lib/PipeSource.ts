@@ -15,7 +15,7 @@ export default class PipeSource extends EventEmitter {
 	}
 
 	protected publish(data: any): void {
-		this.destinations.forEach((destination) => {
+		this.destinations.forEach(destination => {
 			setTimeout(() => destination.receive(data), 0);
 		});
 	}

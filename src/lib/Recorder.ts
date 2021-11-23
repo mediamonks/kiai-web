@@ -1,26 +1,28 @@
-/* eslint-disable max-statements */
-/* eslint-disable max-len */
 import PipeSource from './PipeSource';
 
 type TRecorderOptions = {
 	bufferSize?: number;
 	sampleRate?: number;
 	channelCount?: number;
-	publishFrequency?: number;
+	minDecibels?: number;
+	maxDecibels?: number;
 };
 
 const defaultOptions: TRecorderOptions = {
 	bufferSize: 1024,
 	sampleRate: 44100,
 	channelCount: 1,
-	publishFrequency: 200,
+	minDecibels: -100,
+	maxDecibels: -30,
 };
 
 export default class Recorder extends PipeSource {
 	private readonly options: TRecorderOptions;
 	private isRecording: boolean = false;
-	private micStream: MediaStream;
-	private animationID: number;
+	private animationId: number;
+	private audioContext: AudioContext;
+	private audioAnalyser: AnalyserNode;
+	private stream: MediaStreamAudioSourceNode;
 
 	constructor(options: TRecorderOptions = {}) {
 		super();
@@ -28,37 +30,47 @@ export default class Recorder extends PipeSource {
 		this.options = { ...defaultOptions, ...options };
 	}
 
-	private listen(analyser: AnalyserNode, data: Float32Array) {
-		analyser.getFloatFrequencyData(data);
-		const positiveData = data.map((frequency) => Math.abs(frequency) / 200);
-		this.publish(positiveData);
-		this.animationID = requestAnimationFrame(() => this.listen(analyser, data));
+	private handlePublish() {
+		const data = new Float32Array(this.audioAnalyser.frequencyBinCount);
+		this.audioAnalyser.getFloatFrequencyData(data);
+		this.publish(data);
+		this.animationId = requestAnimationFrame(() => this.handlePublish());
 	}
 
 	public async start(): Promise<void> {
-		if (!this.micStream) {
-			this.micStream = await navigator.mediaDevices.getUserMedia({
+		if (!this.audioContext) {
+			this.audioContext = new AudioContext();
+		}
+
+		if (!this.audioAnalyser) {
+			this.audioAnalyser = this.audioContext.createAnalyser();
+			this.audioAnalyser.fftSize = this.options.bufferSize * 2;
+			this.audioAnalyser.minDecibels = this.options.minDecibels;
+			this.audioAnalyser.maxDecibels = this.options.maxDecibels;
+		}
+
+		if (!this.stream) {
+			const micStream = await navigator.mediaDevices.getUserMedia({
 				video: false,
 				audio: {
 					sampleRate: this.options.sampleRate,
 					channelCount: this.options.channelCount,
 				},
 			});
+			this.stream = this.audioContext.createMediaStreamSource(micStream);
+			this.stream.connect(this.audioAnalyser);
 		}
+
 		if (!this.isRecording) {
-			const context = new AudioContext();
-			const source = context.createMediaStreamSource(this.micStream);
-			const analyser = context.createAnalyser();
-			const data = new Float32Array(analyser.frequencyBinCount);
-			analyser.fftSize = this.options.bufferSize * 2;
-			source.connect(analyser);
-			this.animationID = requestAnimationFrame(() => this.listen(analyser, data));
+			this.handlePublish();
+			this.isRecording = true;
 		}
-		this.isRecording = true;
 	}
 
 	public stop(): void {
-		cancelAnimationFrame(this.animationID);
-		this.isRecording = false;
+		if (this.isRecording) {
+			cancelAnimationFrame(this.animationId);
+			this.isRecording = false;
+		}
 	}
 }
