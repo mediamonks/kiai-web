@@ -30,11 +30,11 @@ export default class Recorder extends PipeSource {
 		this.options = { ...defaultOptions, ...options };
 	}
 
-	private handlePublish() {
+	private publishData() {
 		const data = new Float32Array(this.audioAnalyser.frequencyBinCount);
 		this.audioAnalyser.getFloatFrequencyData(data);
 		this.publish(data);
-		this.animationId = requestAnimationFrame(() => this.handlePublish());
+		this.animationId = requestAnimationFrame(() => this.publishData());
 	}
 
 	public async start(): Promise<void> {
@@ -62,7 +62,7 @@ export default class Recorder extends PipeSource {
 		}
 
 		if (!this.isRecording) {
-			this.handlePublish();
+			this.publishData();
 			this.isRecording = true;
 		}
 	}
