@@ -11,7 +11,7 @@ import { default as SignalEqualizer } from './lib/SignalEqualizer';
 import { default as SignalSmoothener } from './lib/SignalSmoothener';
 import { default as SpectrumAnalyser } from './lib/SpectrumAnalyser';
 import { default as Streamer } from './lib/Streamer';
-import { default as Transcriber } from './lib/Transcriber';
+import { default as Transcriber } from './lib/TranscriberV2';
 import { default as Trigger } from './lib/Trigger';
 import { default as Vocalizer } from './lib/Vocalizer';
 import { default as VoiceInput } from './lib/VoiceInput';

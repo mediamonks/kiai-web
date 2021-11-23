@@ -11,6 +11,9 @@ type TTranscriberOptions = {
 	interimResults?: boolean;
 	baseUrl?: string;
 	apiKey?: string;
+	shouldAutoFinalize?: boolean;
+	audioThreshold?: number;
+	maxSpeechPause?: number;
 };
 
 const DEFAULT_OPTIONS: TTranscriberOptions = {
@@ -19,6 +22,9 @@ const DEFAULT_OPTIONS: TTranscriberOptions = {
 	minConfidence: 0,
 	interimResults: false,
 	baseUrl: 'https://speech.googleapis.com/v1/speech:recognize',
+	shouldAutoFinalize: true,
+	audioThreshold: 50,
+	maxSpeechPause: 1500,
 };
 
 const REQUEST_CONFIG: AxiosRequestConfig = {
@@ -32,6 +38,12 @@ const REQUEST_CONFIG: AxiosRequestConfig = {
 export default class Transcriber extends PipeSource implements IPipeDestination {
 	private readonly options: TTranscriberOptions;
 	private readonly axiosInstance: AxiosInstance;
+	private isTranscribing: boolean = false;
+	private audioChunks: Uint8Array = new Uint8Array();
+	private noSpeechTimer: { timer: NodeJS.Timeout; isRunning: boolean } = {
+		timer: undefined,
+		isRunning: false,
+	};
 
 	constructor(options: TTranscriberOptions = {}) {
 		super();
@@ -50,18 +62,59 @@ export default class Transcriber extends PipeSource implements IPipeDestination 
 	}
 
 	public receive(data: Float32Array) {
-		const audio = {
-			content: float32ToUint8(data),
-		};
+		const { shouldAutoFinalize, maxSpeechPause } = this.options;
+		const audioIsSpeech = false;
+		const timerIsSet = this.noSpeechTimer.timer !== undefined;
+		const setTimer = () =>
+			(this.noSpeechTimer.timer = setTimeout(async () => {
+				await this.finalize();
+			}, maxSpeechPause));
+		if (!this.isTranscribing && shouldAutoFinalize) {
+			// User isn't currently speaking but has spoken before
+			if (!audioIsSpeech && this.audioChunks.length) {
+				// There is no timer so set timer
+				if (!timerIsSet) {
+					setTimer();
+					this.noSpeechTimer.isRunning = true;
+					// There is a timer, restart timer
+				} else if (timerIsSet && !this.noSpeechTimer.isRunning) {
+					this.noSpeechTimer.timer.refresh();
+					this.noSpeechTimer.isRunning = true;
+				}
+				// User is currently speaking
+			} else if (audioIsSpeech) {
+				if (timerIsSet && this.noSpeechTimer.isRunning) {
+					clearTimeout(this.noSpeechTimer.timer);
+					this.noSpeechTimer.isRunning = false;
+				}
+				this.saveNewData(data);
+			}
+		}
+	}
 
-		const config = {
-			encoding: 'LINEAR16' as const,
-			languageCode: this.options.language,
-		};
+	private saveNewData(data: Float32Array) {
+		const newAudioData = float32ToUint8(data);
+		const arrayLength = this.audioChunks.length + newAudioData.length;
+		const mergedArray = new Uint8Array(arrayLength);
+		mergedArray.set(this.audioChunks, 0);
+		mergedArray.set(newAudioData, this.audioChunks.length);
+		this.audioChunks = mergedArray;
+	}
 
-		return this.axiosInstance
-			.post('', { audio, config })
-			.then((response: AxiosResponse) => this.processResponseData(response.data));
+	private async finalize() {
+		this.isTranscribing = true;
+		console.log('transcribing');
+		this.isTranscribing = false;
+
+		// const audio = {
+		// 	content: this.audioChunks,
+		// };
+		// const config = {
+		// 	encoding: 'LINEAR16' as const,
+		// 	languageCode: this.options.language,
+		// };
+		// const response: AxiosResponse = await this.axiosInstance.post('', { audio, config });
+		// return this.processResponseData(response.data);
 	}
 
 	private processResponseData(data: unknown) {
