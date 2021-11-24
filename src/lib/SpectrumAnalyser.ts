@@ -6,8 +6,6 @@ type TSpectrumAnalyserOptions = {
 	canvasElement?: HTMLCanvasElement;
 	color?: TColor;
 	thickness?: number;
-	minDecibels?: number;
-	maxDecibels?: number;
 };
 
 export default class SpectrumAnalyser implements IPipeDestination {
@@ -15,8 +13,6 @@ export default class SpectrumAnalyser implements IPipeDestination {
 	private readonly canvasContext: CanvasRenderingContext2D;
 	private readonly color: TColor = [191, 191, 191];
 	private readonly thickness: number = 3;
-	private readonly minDecibels: number = -100;
-	private readonly maxDecibels: number = -30;
 
 	constructor(options: TSpectrumAnalyserOptions) {
 		if (!options.canvasElement) throw new Error('SpectrumAnalyser: canvasElement is required');
@@ -28,22 +24,19 @@ export default class SpectrumAnalyser implements IPipeDestination {
 		this.thickness = options.thickness || this.thickness;
 	}
 
-	private equalizeFrequency(frequency: number, highestNumber: number) {
-		const positiveVal = frequency - this.minDecibels;
-		const difference = Math.abs(this.minDecibels - this.maxDecibels);
-		const equalizer = highestNumber / difference;
-		return positiveVal * equalizer;
-	};
-
 	public receive(data: Float32Array): void {
 		const yMiddle = this.canvasElement.height / 2;
-		const formattedData = data.map(frequency => this.equalizeFrequency(frequency, yMiddle));
+		// Data is transformed to 0 and half of the canvas height
+		const transformedData = data.map(freq => {
+			const zeroToHundred = (freq + 127) / 2.55;
+			return zeroToHundred * (100 / yMiddle);
+		});
 		const canvasWidth = this.canvasElement.width;
-		const bufferLength = data.length;
+		const bufferLength = transformedData.length;
 
 		this.canvasContext.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
 
-		formattedData.forEach((value, index) => {
+		transformedData.forEach((value, index) => {
 			const posX = (index / bufferLength) * canvasWidth;
 			const posY = yMiddle - value;
 
@@ -51,7 +44,7 @@ export default class SpectrumAnalyser implements IPipeDestination {
 			const opacity = 1 - (Math.abs(posX - xMiddle) / xMiddle);
 			this.canvasContext.fillStyle = `rgba(${this.color.join(',')}, ${opacity})`;
 
-			this.canvasContext.fillRect(posX, posY, 1, this.thickness);
+			this.canvasContext.fillRect(posX, posY - ((this.thickness - 1) / 2), 1, this.thickness);
 		});
 	}
 }
