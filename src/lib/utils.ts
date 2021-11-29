@@ -17,12 +17,18 @@ export function findMatch(input: string, candidates: TMatchCandidates, partial: 
 
 export function float32ToUint8(input: Float32Array) {
 	const output = new Uint8Array(input.length);
-
 	input.forEach((value, index) => {
 		let val = clamp(value, -1, 1);
 		val *= (val < 0 ? 0x8000 : 0x7FFF);
 		output[index] = (val / 256) + 128;
 	});
-
 	return output;
 }
+
+export function uint8ToBase64(input: Uint8Array) {
+	let binary = '';
+	input.forEach(byte => {
+		binary += String.fromCharCode(byte);
+	});
+	return window.btoa(binary);
+};
