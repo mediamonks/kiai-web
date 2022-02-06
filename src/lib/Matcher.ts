@@ -1,3 +1,6 @@
+/*
+	Needs rework
+ */
 import { sample } from 'lodash';
 import { IPipeDestination, TIntents } from './types';
 import PipeSource from './PipeSource';
@@ -7,7 +10,7 @@ export default class Matcher extends PipeSource implements IPipeDestination {
 
 	private language: string;
 
-	constructor({ intents, language }: { intents: TIntents; language: string }) {
+	public constructor({ intents, language }: { intents: TIntents; language: string }) {
 		super();
 
 		this.intents = intents;

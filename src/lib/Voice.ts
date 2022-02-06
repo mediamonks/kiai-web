@@ -1,18 +1,20 @@
+/*
+	Combines the Vocalizer and AudioPlayer to represent a single voice
+	Takes text phrases and allows their playback as audio
+ */
 import md5 from 'md5';
 import Vocalizer from './Vocalizer';
 import AudioPlayer from './AudioPlayer';
-
-// @ts-ignore
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
+import Context from './Context';
 
 export default class Voice {
-	private audioPlayer: AudioPlayer;
-	private vocalizer: Vocalizer = null;
+	private readonly audioPlayer: AudioPlayer;
+	private readonly vocalizer: Vocalizer = null;
+	private readonly audioContext: AudioContext;
 	private cache: { [hash: string]: AudioBuffer | Promise<AudioBuffer> } = {};
-	private audioContext: AudioContext;
 
-	constructor(options: { [key: string]: any }) {
-		this.audioContext = new AudioContext();
+	public constructor(options: { [key: string]: unknown }) {
+		this.audioContext = Context.get();
 
 		this.vocalizer = new Vocalizer({ ...options, audioContext: this.audioContext });
 
@@ -22,9 +24,9 @@ export default class Voice {
 	}
 
 	public preload(
-		phrases: string[],
+		phrases: Array<string>,
 		progressCallback: (progress: number) => void = () => null,
-	): Promise<void[]> {
+	): Promise<Array<void>> {
 		let loaded = 0;
 
 		const loadPhrase = (phrase: string) =>
@@ -47,15 +49,9 @@ export default class Voice {
 	public load(phrase: string): Promise<AudioBuffer> {
 		const hash = md5(phrase);
 		const cache = this.cache[hash];
-		// tslint:disable-next-line:no-console
-		// if (cache instanceof AudioBuffer) console.debug('[Voice]', `from cache "${phrase}"`);
-		// tslint:disable-next-line:no-console
-		// if (cache instanceof Promise) console.debug('[Voice]', `already loading "${phrase}"`);
 		if (!cache) {
 			this.cache[hash] = this.vocalizer.synthesize(phrase).then(audio => {
 				this.cache[hash] = audio;
-				// tslint:disable-next-line:no-console
-				// console.debug('[Voice]', `loaded "${phrase}"`);
 				return audio;
 			});
 		}
@@ -68,8 +64,6 @@ export default class Voice {
 	}
 
 	public release(): Voice {
-		// tslint:disable-next-line:no-console
-		// console.debug('[VOICE] cache released');
 		this.cache = {};
 		return this;
 	}

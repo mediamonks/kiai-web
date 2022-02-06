@@ -1,76 +1,76 @@
+/*
+	Records audio data from the microphone and publishes it, including frequency data if specified
+	Uses deprecated script processor node
+ */
 import PipeSource from './PipeSource';
 
 type TRecorderOptions = {
 	bufferSize?: number;
 	sampleRate?: number;
 	channelCount?: number;
-	minDecibels?: number;
-	maxDecibels?: number;
-};
-
-const defaultOptions: TRecorderOptions = {
-	bufferSize: 1024,
-	sampleRate: 44100,
-	channelCount: 1,
-	minDecibels: -100,
-	maxDecibels: -30,
+	publishFrequencyData?: boolean;
 };
 
 export default class Recorder extends PipeSource {
-	private readonly options: TRecorderOptions;
 	private isRecording: boolean = false;
-	private animationId: number;
-	private audioContext: AudioContext;
 	private audioAnalyser: AnalyserNode;
 	private stream: MediaStreamAudioSourceNode;
-
-	constructor(options: TRecorderOptions = {}) {
-		super();
-
-		this.options = { ...defaultOptions, ...options };
-	}
-
-	private publishData() {
-		const data = new Float32Array(this.audioAnalyser.frequencyBinCount);
-		this.audioAnalyser.getFloatFrequencyData(data);
-		this.publish(data);
-		this.animationId = requestAnimationFrame(() => this.publishData());
-	}
+	private scriptProcessor: ScriptProcessorNode;
+	protected readonly defaultOptions: TRecorderOptions = {
+		bufferSize: 1024,
+		sampleRate: 44100,
+		channelCount: 1,
+	};
 
 	public async start(): Promise<void> {
-		if (!this.audioContext) {
-			this.audioContext = new AudioContext();
+		const { bufferSize, channelCount, sampleRate, publishFrequencyData } = this.options as TRecorderOptions;
+
+		if (!this.scriptProcessor) {
+			this.scriptProcessor = this.audioContext.createScriptProcessor(
+				bufferSize,
+				channelCount,
+				channelCount,
+			);
+
+			this.scriptProcessor.onaudioprocess = event => {
+				if (!this.isRecording) return;
+
+				const timeDomain = event.inputBuffer.getChannelData(0).slice();
+
+				if (publishFrequencyData) {
+					const frequency = new Float32Array(this.audioAnalyser.frequencyBinCount);
+					this.audioAnalyser.getFloatFrequencyData(frequency);
+
+					this.publish({ timeDomain, frequency });
+
+					return;
+				}
+
+				this.publish({ timeDomain });
+			};
+
+			this.scriptProcessor.connect(this.audioContext.destination);
 		}
 
-		if (!this.audioAnalyser) {
+		if (publishFrequencyData && !this.audioAnalyser) {
 			this.audioAnalyser = this.audioContext.createAnalyser();
-			this.audioAnalyser.fftSize = this.options.bufferSize * 2;
-			this.audioAnalyser.minDecibels = this.options.minDecibels;
-			this.audioAnalyser.maxDecibels = this.options.maxDecibels;
+			this.audioAnalyser.fftSize = bufferSize * 2;
 		}
 
 		if (!this.stream) {
 			const micStream = await navigator.mediaDevices.getUserMedia({
 				video: false,
-				audio: {
-					sampleRate: this.options.sampleRate,
-					channelCount: this.options.channelCount,
-				},
+				audio: { sampleRate, channelCount },
 			});
 			this.stream = this.audioContext.createMediaStreamSource(micStream);
-			this.stream.connect(this.audioAnalyser);
+			this.stream.connect(this.scriptProcessor);
+			if (publishFrequencyData) this.stream.connect(this.audioAnalyser);
 		}
 
-		if (!this.isRecording) {
-			this.publishData();
-			this.isRecording = true;
-		}
+		this.isRecording = true;
 	}
 
 	public stop(): void {
-		if (this.isRecording) {
-			cancelAnimationFrame(this.animationId);
-			this.isRecording = false;
-		}
+		this.isRecording = false;
 	}
 }

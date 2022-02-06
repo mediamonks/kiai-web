@@ -1,114 +1,71 @@
+/*
+	Takes an audio buffer and uses Google's Speech API to transcribe the audio to text
+ */
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import merge from 'lodash/merge';
+import toWav from 'audiobuffer-to-wav';
+import { IPipeDestination, TSpeechToTextResponse } from './types';
 import PipeSource from './PipeSource';
-import { SpeechRecognitionEvent } from './types';
-
-// @ts-ignore
-window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-// @ts-ignore
-window.SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
 
 type TTranscriberOptions = {
 	language?: string;
 	maxAlternatives?: number;
 	minConfidence?: number;
 	interimResults?: boolean;
+	baseUrl?: string;
+	apiKey?: string;
+	sampleRate?: number;
 };
 
-const defaultOptions: TTranscriberOptions = {
-	language: 'en-US',
-	maxAlternatives: 1,
-	minConfidence: 0,
-	interimResults: false,
+const REQUEST_CONFIG: AxiosRequestConfig = {
+	method: 'post',
+	headers: {
+		'Content-Type': 'application/json; charset=utf-8',
+	},
+	responseType: 'json',
 };
 
-export default class Transcriber extends PipeSource {
-	// @ts-ignore
-	private readonly recognition: SpeechRecognition;
+export default class Transcriber extends PipeSource implements IPipeDestination {
+	private readonly axiosInstance: AxiosInstance;
+	public readonly defaultOptions: TTranscriberOptions = {
+		language: 'en-US',
+		maxAlternatives: 1,
+		minConfidence: 0,
+		interimResults: false,
+		baseUrl: 'https://speech.googleapis.com/v1/speech:recognize',
+		sampleRate: 44100,
+	};
 
-	private isTranscribing: boolean = false;
-	private resolver: () => void;
-	private gotResult: boolean = false;
-	private aborted: boolean = false;
+	public constructor(options: TTranscriberOptions = {}) {
+		super(options);
 
-	constructor(options: TTranscriberOptions = {}) {
-		super();
+		const { apiKey, baseUrl } = this.options as TTranscriberOptions;
 
-		if (!('SpeechRecognition' in window)) throw new Error('Web Speech API not supported');
+		if (!baseUrl) throw new Error('Transcriber: Missing URL for Google Speech');
 
-		// @ts-ignore
-		this.recognition = new window.SpeechRecognition();
+		if (!apiKey) throw new Error('Transcriber: Missing API key for Google Speech');
 
-		const opts = { ...defaultOptions, ...options };
-
-		this.recognition.lang = opts.language;
-		this.recognition.interimResults = opts.interimResults;
-		// this.recognition.continuous = true;
-		this.recognition.maxAlternatives = opts.maxAlternatives;
-		this.recognition.addEventListener('result', this.handleResult.bind(this));
-
-		this.recognition.addEventListener('error', (event: SpeechRecognitionEvent) => {
-			this.recognition.abort();
-			// eslint-disable-next-line no-console
-			console.error(event.error); // tslint:disable-line no-console
-		});
-
-		this.recognition.addEventListener('start', () => {
-			this.isTranscribing = true;
-			if (this.resolver) this.resolver();
-			delete this.resolver;
-			this.emit('started');
-		});
-
-		this.recognition.addEventListener('end', () => {
-			this.isTranscribing = false;
-			if (this.resolver) this.resolver();
-			delete this.resolver;
-
-			if (!this.gotResult && !this.aborted) this.emit('noresult');
-
-			this.gotResult = false;
-			this.emit('ended');
-		});
+		this.axiosInstance = axios.create(
+			merge({ baseURL: baseUrl, params: { key: apiKey } }, REQUEST_CONFIG),
+		);
 	}
 
-	public start(): Promise<void> {
-		if (this.isTranscribing) return Promise.reject(new Error('Transcriber: already started'));
-		this.aborted = false;
+	public async receive(data: AudioBuffer): Promise<void> {
+		const audio = {
+			content: Buffer.from(toWav(data)).toString('base64'),
+		};
 
-		return new Promise(resolve => {
-			this.resolver = resolve;
-			this.recognition.start();
-		});
-	}
+		const config = {
+			encoding: 'LINEAR16' as const,
+			languageCode: this.options.language,
+			sampleRateHertz: this.options.sampleRate,
+		};
 
-	public stop(): Promise<void> {
-		if (!this.isTranscribing) return Promise.resolve();
-		this.aborted = true;
+		const response: AxiosResponse = await this.axiosInstance.post('', { audio, config });
+		const responseData: TSpeechToTextResponse = response.data;
 
-		return new Promise(resolve => {
-			this.resolver = resolve;
-			this.recognition.abort();
-		});
-	}
+		if (!responseData?.results?.[0]?.alternatives?.length) return;
 
-	private handleResult(event: SpeechRecognitionEvent) {
-		const lastResult = Array.from(event.results).pop() as SpeechRecognitionResult;
-
-		const combinedTranscript = Array.from(event.results).reduce((combined, result) => {
-			const [{ transcript }] = Array.from(result).sort(
-				// eslint-disable-next-line id-length
-				(a: SpeechRecognitionAlternative, b: SpeechRecognitionAlternative) =>
-					b.confidence - a.confidence,
-			);
-
-			return combined + transcript;
-		}, '');
-
-		this.emit('result', combinedTranscript);
-
-		if (!lastResult.isFinal) return;
-
-		this.gotResult = true;
-
-		this.publish(combinedTranscript);
+		this.publish(responseData.results[0].alternatives[0].transcript);
 	}
 }

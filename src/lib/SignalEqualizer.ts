@@ -1,27 +1,29 @@
+/*
+	Takes a value (frequency or amplitude) and smoothens it
+ */
 import { IPipeDestination } from './types';
 import PipeSource from './PipeSource';
 
+type TSignalEqualizerOptions = {
+	filterWidth?: number;
+};
+
 export default class SignalEqualizer extends PipeSource implements IPipeDestination {
-	private readonly filterWidth: number = 9;
-	private buffer: number[] = [];
+	private readonly buffer: Array<number> = [];
+	protected readonly defaultOptions: TSignalEqualizerOptions = {
+		filterWidth: 9,
+	};
 
-	constructor({
-		filterWidth,
-	}: {
-		filterWidth?: number;
-	} = {}) {
-		super();
-		this.filterWidth = filterWidth || this.filterWidth;
-	}
+	public receive(value: number): void {
+		const { filterWidth } = this.options;
 
-	public receive({ frequency }: { frequency: number }): void {
-		this.buffer.push(frequency);
+		this.buffer.push(value);
 
-		if (this.buffer.length > this.filterWidth) this.buffer.shift();
-		if (this.buffer.length < this.filterWidth) return;
+		if (this.buffer.length > filterWidth) this.buffer.shift();
+		if (this.buffer.length < filterWidth) return;
 
-		const average = this.buffer.reduce((sum, value) => sum + value, 0) / this.buffer.length;
+		const average = this.buffer.reduce((sum, val) => sum + val, 0) / this.buffer.length;
 
-		this.publish({ frequency: average });
+		this.publish(average);
 	}
 }

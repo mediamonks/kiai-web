@@ -1,72 +1,68 @@
+/*
+	Takes audio data and smoothens it
+ */
 import range from 'lodash/range';
-import { IPipeDestination } from './types';
+import { IPipeDestination, TAudioData } from './types';
 import PipeSource from './PipeSource';
 
-export enum METHOD {
-	MEAN,
-	MEDIAN,
-	INTERPOLATION,
-	LINEAR,
-}
+type TMethod = 'mean' | 'median' | 'interpolation' | 'linear';
 
-type TMethod = METHOD;
+type TSignalSmoothenerOptions = {
+	windowSize?: number;
+	method?: TMethod;
+};
 
-const median = (values: number[]): number => {
+const median = (values: Array<number>): number => {
 	const { length } = values;
 	const sortedValues = values.sort();
 	return (
 		(length % 2 && sortedValues[(length - 1) / 2]) ||
-		(sortedValues[length / 2] + sortedValues[(length / 2) - 1]) / 2
+		(sortedValues[length / 2] + sortedValues[length / 2 - 1]) / 2
 	);
 };
 
-// const mean = (values: number[]): number =>
-// values.reduce((sum, value) => sum + value, 0) / values.length;
-
 export default class SignalSmoothener extends PipeSource implements IPipeDestination {
-	private readonly windowSize: number = 16;
-	private readonly method: TMethod = METHOD.MEAN;
-
-	constructor({
-		windowSize,
-		method,
-	}: {
-		windowSize?: number;
-		method?: TMethod;
-	} = {}) {
-		super();
-		this.windowSize = windowSize || this.windowSize;
-		this.method = method || this.method;
+	protected readonly defaultOptions: TSignalSmoothenerOptions = {
+		windowSize: 16,
+		method: SignalSmoothener.METHODS.MEAN,
 	}
 
-	public receive(data: Float32Array): void {
-		const { windowSize } = this;
+	public static readonly METHODS: { [key: string]: TMethod } = {
+		MEAN: 'mean',
+		MEDIAN: 'median',
+		INTERPOLATION: 'interpolation',
+		LINEAR: 'linear',
+	};
+
+	public receive({ timeDomain, frequency, amplitude }: TAudioData): void {
+		const { windowSize, method } = this.options as TSignalSmoothenerOptions;
+
+		const data = timeDomain;
 
 		const result = data.map((value, index) => {
 			const windowStart = Math.max(0, index - windowSize);
 			const windowEnd = Math.min(data.length - 1, index + windowSize);
 			const length = windowEnd - windowStart;
 
-			switch (this.method) {
+			switch (method) {
 				default:
 				/* fallthrough to default (mean) */
-				case METHOD.MEAN:
+				case SignalSmoothener.METHODS.MEAN:
 					return (
-						range(windowStart, windowEnd)
-							.reduce((sum, position) => sum + data[position], 0) / length
+						range(windowStart, windowEnd).reduce((sum, position) => sum + data[position], 0) /
+						length
 					);
-				case METHOD.MEDIAN:
+				case SignalSmoothener.METHODS.MEDIAN:
 					return median(range(windowStart, windowEnd).map(position => data[position]));
-				case METHOD.INTERPOLATION:
+				case SignalSmoothener.METHODS.INTERPOLATION:
 					return (data[windowStart] + data[windowEnd]) / 2;
-				case METHOD.LINEAR:
-					return data[windowStart] +
-						((data[windowEnd] - data[windowStart]) * (windowSize / length));
+				case SignalSmoothener.METHODS.LINEAR:
+					return data[windowStart] + (data[windowEnd] - data[windowStart]) * (windowSize / length);
 			}
 
 			return value;
 		});
 
-		this.publish(result);
+		this.publish({ timeDomain: result, frequency, amplitude });
 	}
 }

@@ -1,3 +1,6 @@
+/*
+	Takes a frequency value and publishes its musical notation
+ */
 import { IPipeDestination } from './types';
 import PipeSource from './PipeSource';
 
@@ -23,7 +26,7 @@ const calculateNote = (semiTone: number) => {
 export default class NoteConverter extends PipeSource implements IPipeDestination {
 	private lastFrequency: number = 0;
 
-	public receive({ frequency }: { frequency: number }): void {
+	public receive(frequency: number): void {
 		const semiTone = calculateSemiTone(frequency);
 
 		const note = calculateNote(semiTone);

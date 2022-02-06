@@ -16,15 +16,17 @@
 		"lint:es": "eslint src/**/*"
 	},
 	"devDependencies": {
+		"@mediamonks/eslint-config-base": "^2.0.0",
+		"@types/audiobuffer-to-wav": "^1.0.2",
 		"@types/lodash": "^4.14.175",
 		"@types/md5": "^2.3.1",
 		"@typescript-eslint/eslint-plugin": "^5.0.0",
 		"@typescript-eslint/parser": "^5.0.0",
-		"eslint": "^7.32.0",
 		"npm-run-all": "^4.1.5",
-		"typescript": "^4.4.3"
+		"typescript": "^4.5.4"
 	},
 	"dependencies": {
+		"audiobuffer-to-wav": "^1.0.0",
 		"axios": "^0.22.0",
 		"lodash": "^4.17.21",
 		"md5": "^2.3.0",

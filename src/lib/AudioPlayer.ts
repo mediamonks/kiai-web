@@ -1,3 +1,6 @@
+/*
+	Takes an audio buffer and plays it back
+ */
 import { IPipeDestination } from './types';
 import PipeSource from './PipeSource';
 
@@ -8,32 +11,18 @@ type TAudioPlayerOptions = {
 	publishInterval?: number;
 };
 
-const DEFAULT_OPTIONS: TAudioPlayerOptions = {
-	queueInput: false,
-	queueTimeout: 0,
-	publishInterval: 100,
-};
-
 export default class AudioPlayer extends PipeSource implements IPipeDestination {
-	private readonly audioContext: AudioContext;
-	private readonly analyser: AnalyserNode;
-	private readonly options: TAudioPlayerOptions;
+	private readonly queue: Array<AudioBuffer> = [];
+	private analyser: AnalyserNode;
 	private playing: boolean = false;
-	private queue: AudioBuffer[] = [];
 	private publishTimer: number;
 	private bufferSource: AudioBufferSourceNode;
 	private paused: boolean = false;
-
-	constructor(options: TAudioPlayerOptions = {}) {
-		super();
-
-		this.options = { ...DEFAULT_OPTIONS, ...options };
-
-		this.audioContext = options.audioContext || new AudioContext();
-		this.analyser = this.audioContext.createAnalyser();
-		this.analyser.fftSize = 2048;
-		this.analyser.connect(this.audioContext.destination);
-	}
+	protected readonly defaultOptions: TAudioPlayerOptions = {
+		queueInput: false,
+		queueTimeout: 0,
+		publishInterval: 100,
+	};
 
 	public receive(data: AudioBuffer): void {
 		if (!this.options.queueInput) {
@@ -50,16 +39,18 @@ export default class AudioPlayer extends PipeSource implements IPipeDestination 
 	}
 
 	private next(): AudioPlayer {
+		const { queueInput, queueTimeout } = this.options as TAudioPlayerOptions;
+
 		if (!this.playing || this.paused) return this;
 
-		if (!this.options.queueInput || !this.queue.length) {
+		if (!queueInput || !this.queue.length) {
 			this.playing = false;
 			this.bufferSource = null;
 			this.emit('ended');
 			return this;
 		}
 
-		setTimeout(() => this.playAudio(this.queue.shift()), this.options.queueTimeout);
+		setTimeout(() => this.playAudio(this.queue.shift()), queueTimeout);
 
 		return this;
 	}
@@ -74,6 +65,10 @@ export default class AudioPlayer extends PipeSource implements IPipeDestination 
 		const gainNode = this.audioContext.createGain();
 		gainNode.gain.value = 1;
 		gainNode.connect(this.audioContext.destination);
+
+		this.analyser = this.audioContext.createAnalyser();
+		this.analyser.fftSize = 2048;
+		this.analyser.connect(this.audioContext.destination);
 
 		const source = this.audioContext.createBufferSource();
 		source.connect(gainNode);
@@ -128,7 +123,7 @@ export default class AudioPlayer extends PipeSource implements IPipeDestination 
 		window.clearTimeout(this.publishTimer);
 		this.publishTimer = window.setTimeout(
 			this.publishTimeDomainData.bind(this),
-			this.options.publishInterval,
+			this.options.publishInterval as number,
 		);
 	}
 

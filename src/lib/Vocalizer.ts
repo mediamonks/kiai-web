@@ -1,3 +1,7 @@
+/*
+	Takes text and vocalizes it into an audio buffer
+	Needs work
+ */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import merge from 'lodash/merge';
 import md5 from 'md5';
@@ -20,11 +24,11 @@ type TTtsResponse = {
 	audioContent: string;
 };
 
-type TRequestQueue = {
+type TRequestQueue = Array<{
 	hash: string;
 	promise: Promise<void>;
 	audioBuffer?: AudioBuffer;
-}[];
+}>;
 
 const REQUEST_CONFIG: AxiosRequestConfig = {
 	method: 'post',
@@ -34,31 +38,24 @@ const REQUEST_CONFIG: AxiosRequestConfig = {
 	responseType: 'json',
 };
 
-const DEFAULT_OPTIONS: TVocalizerOptions = {
-	language: 'en-US',
-	voice: 'en-US-Wavenet-D',
-	preserveOrder: false,
-	baseUrl: 'https://texttospeech.googleapis.com/v1/text:synthesize',
-};
-
 export default class Vocalizer extends PipeSource implements IPipeDestination {
 	private readonly axiosInstance: AxiosInstance;
-	private readonly options: TVocalizerOptions;
-	private readonly audioContext: AudioContext;
-	private requests: TRequestQueue = [];
+	private readonly requests: TRequestQueue = [];
+	protected readonly defaultOptions: TVocalizerOptions = {
+		language: 'en-US',
+		voice: 'en-US-Wavenet-D',
+		preserveOrder: false,
+		baseUrl: 'https://texttospeech.googleapis.com/v1/text:synthesize',
+	};
 
-	constructor(options: TVocalizerOptions = {}) {
-		super();
+	public constructor(options: TVocalizerOptions = {}) {
+		super(options);
 
-		this.options = { ...DEFAULT_OPTIONS, ...options };
+		const { apiKey, baseUrl } = this.options as TVocalizerOptions;
 
-		const { apiKey, baseUrl } = this.options;
+		if (!baseUrl) throw new Error('Vocalizer: Missing URL for Google Text-to-speech');
 
-		if (!apiKey && !baseUrl) {
-			throw new Error('Vocalizer: Missing API key for Google Text-to-speech');
-		}
-
-		this.audioContext = this.options.audioContext || new AudioContext();
+		if (!apiKey) throw new Error('Vocalizer: Missing API key for Google Text-to-speech');
 
 		this.axiosInstance = axios.create(
 			merge({ baseURL: baseUrl, params: { key: apiKey } }, REQUEST_CONFIG),
@@ -113,8 +110,9 @@ export default class Vocalizer extends PipeSource implements IPipeDestination {
 	}
 
 	private processResponse(data: TTtsResponse): Promise<AudioBuffer> {
-		const arrayBuffer =
-			Uint8Array.from(atob(data.audioContent), char => char.charCodeAt(0)).buffer;
+		// const arrayBuffer =
+		// 	Uint8Array.from(atob(data.audioContent), char => char.charCodeAt(0)).buffer;
+		const arrayBuffer = Buffer.from(data.audioContent, 'base64');
 		return this.audioContext.decodeAudioData(arrayBuffer);
 	}
 }

@@ -5,29 +5,54 @@ export type TIntentParameter = {
 };
 
 export type TIntent = {
-	events: string[];
+	events: Array<string>;
 	isFallback: boolean;
 	phrases: {
-		[language: string]: string[];
+		[language: string]: Array<string>;
 	};
-	parameters: TIntentParameter[];
-	contexts: string[];
+	parameters: Array<TIntentParameter>;
+	contexts: Array<string>;
 	priority: string;
 };
 
 export type TIntents = { [name: string]: TIntent };
 
 export interface IPipeDestination {
-	receive: (data: any) => void;
+	receive: (data: unknown) => void;
 }
 
 export type TPrimitive = string | number | boolean | null;
 
 export type TKeyValue = {
-	[key: string]: TPrimitive | TPrimitive[] | TKeyValue | TKeyValue[];
+	[key: string]: TPrimitive | Array<TPrimitive> | TKeyValue | Array<TKeyValue>;
 };
 
+export type TColor = [number, number, number];
+
+export type TOptions = {
+	[key: string]: TPrimitive | HTMLElement | TColor | AudioContext | TKeyValue;
+};
+
+export type TAudioData = {
+	timeDomain?: Float32Array;
+	frequency?: Float32Array;
+	amplitude?: number;
+};
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
 interface SpeechRecognitionEvent {
-	results: SpeechRecognitionResult[],
-	error: string
+	results: Array<SpeechRecognitionResult>;
+	error: string;
 }
+
+type TSpeechToTextResponse = {
+	totalBilledTime: string;
+	results?: Array<{
+		alternatives: Array<{
+			transcript: string;
+			confidence: number;
+		}>;
+		resultEndTime: string;
+		languageCode: string;
+	}>;
+};

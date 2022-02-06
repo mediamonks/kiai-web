@@ -1,22 +1,25 @@
+/*
+	Needs work
+ */
 import PipeSource from './PipeSource';
 import { IPipeDestination } from './types';
 
 type TDialog = {
-	global?: {
-		matches: string[];
+	global?: Array<{
+		matches: Array<string>;
 		play?: string;
 		next?: string;
-	}[];
+	}>;
 	nodes: {
 		[key: string]: {
-			play: string[];
+			play: Array<string>;
 			input?: {
 				[key: string]: {
-					matches: string[];
+					matches: Array<string>;
 					suggestion: string;
 				};
 			};
-			fallback: string[];
+			fallback: Array<string>;
 			next: string;
 			revert: boolean;
 		};
@@ -29,15 +32,9 @@ type TScriptReaderOptions = {
 	audioDelay?: number;
 };
 
-const DEFAULT_OPTIONS: TScriptReaderOptions = {
-	dialog: { nodes: {} },
-	startNode: 'start',
-	audioDelay: 1000,
-};
-
-const findMatch = (candidates: string[], transcript: string): string | undefined =>
-	candidates.find(cadidate => {
-		const regex = new RegExp(`(^|[^a-z])${cadidate}([^a-z]|$)`, 'gimu');
+const findMatch = (candidates: Array<string>, transcript: string): string | undefined =>
+	candidates.find(candidate => {
+		const regex = new RegExp(`(^|[^a-z])${candidate}([^a-z]|$)`, 'gimu');
 		return regex.test(transcript);
 	});
 
@@ -46,16 +43,20 @@ export default class ScriptReader extends PipeSource implements IPipeDestination
 	private currentNode: string;
 	private currentAudioIndex: number = 0;
 	private fallbackCount: number = 0;
-	private options: TScriptReaderOptions = {};
 	private returnToNode: string;
+	protected readonly defaultOptions: TScriptReaderOptions = {
+		dialog: { nodes: {} },
+		startNode: 'start',
+		audioDelay: 1000,
+	};
 
-	constructor(options: TScriptReaderOptions) {
-		super();
+	public constructor(options: TScriptReaderOptions) {
+		super(options);
 
-		this.options = { ...DEFAULT_OPTIONS, ...options };
+		const { dialog, startNode } = this.options as TScriptReaderOptions;
 
-		this.dialog = this.options.dialog;
-		this.currentNode = this.options.startNode;
+		this.dialog = dialog;
+		this.currentNode = startNode;
 	}
 
 	private get dialogNode() {
@@ -109,23 +110,24 @@ export default class ScriptReader extends PipeSource implements IPipeDestination
 		this.emit('fallback', { node: this.currentNode, count: this.fallbackCount });
 	}
 
-	public revertFrom(node: string) {
+	public revertFrom(node: string): void {
 		this.returnToNode = this.currentNode;
 		this.setCurrentNode(node);
 		this.next();
 	}
 
-	public start() {
+	public start(): void {
 		this.next();
 	}
 
 	// eslint-disable-next-line max-statements
 	public next(): void {
+		const { audioDelay } = this.options as TScriptReaderOptions;
 		const { play } = this.dialogNode;
 		const audioName = play[this.currentAudioIndex];
 
 		if (audioName) {
-			setTimeout(() => this.publish(audioName), this.options.audioDelay);
+			setTimeout(() => this.publish(audioName), audioDelay);
 			this.currentAudioIndex++;
 			return;
 		}

@@ -1,3 +1,6 @@
+/*
+	Needs work
+ */
 type TSequence = (() => Promise<void> | void)[];
 
 export default class Sequencer {

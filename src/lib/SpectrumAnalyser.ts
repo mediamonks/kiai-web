@@ -1,50 +1,52 @@
-import { IPipeDestination } from './types';
-
-type TColor = [number, number, number];
+/*
+	Takes audio data and renders a spectrum analysis graph on a canvas
+ */
+import { IPipeDestination, TAudioData, TColor } from './types';
+import Node from './Node';
 
 type TSpectrumAnalyserOptions = {
 	canvasElement?: HTMLCanvasElement;
 	color?: TColor;
 	thickness?: number;
+	minDecibels?: number;
+	maxDecibels?: number;
 };
 
-export default class SpectrumAnalyser implements IPipeDestination {
-	private readonly canvasElement: HTMLCanvasElement;
+export default class SpectrumAnalyser extends Node implements IPipeDestination {
 	private readonly canvasContext: CanvasRenderingContext2D;
-	private readonly color: TColor = [191, 191, 191];
-	private readonly thickness: number = 3;
+	protected readonly defaultOptions: TSpectrumAnalyserOptions = {
+		color: [191, 191, 191],
+		thickness: 1,
+		minDecibels: -140,
+		maxDecibels: 0,
+	};
 
-	constructor(options: TSpectrumAnalyserOptions) {
-		if (!options.canvasElement) throw new Error('SpectrumAnalyser: canvasElement is required');
+	public constructor(options: TSpectrumAnalyserOptions) {
+		super(options);
 
-		this.canvasElement = options.canvasElement;
-		this.canvasContext = this.canvasElement.getContext('2d');
+		const { canvasElement, color } = this.options as TSpectrumAnalyserOptions;
 
-		this.color = options.color || this.color;
-		this.thickness = options.thickness || this.thickness;
+		if (!canvasElement) throw new Error('SpectrumAnalyser: canvasElement is required');
+
+		this.canvasContext = canvasElement.getContext('2d');
+		this.canvasContext.fillStyle = `rgba(${color.join(',')}, 1)`;
 	}
 
-	public receive(data: Float32Array): void {
-		const yMiddle = this.canvasElement.height / 2;
-		// Data is transformed to 0 and half of the canvas height
-		const transformedData = data.map(freq => {
-			const zeroToHundred = (freq + 127) / 2.55;
-			return zeroToHundred * (100 / yMiddle);
-		});
-		const canvasWidth = this.canvasElement.width;
-		const bufferLength = transformedData.length;
+	public receive({ frequency }: TAudioData): void {
+		const { canvasElement, thickness, minDecibels, maxDecibels } = this.options as TSpectrumAnalyserOptions;
+		const { canvasContext } = this;
+		const canvasWidth = canvasElement.width;
+		const canvasHeight = canvasElement.height;
+		const { length } = frequency;
+		const amp = maxDecibels - minDecibels;
 
-		this.canvasContext.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+		canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-		transformedData.forEach((value, index) => {
-			const posX = (index / bufferLength) * canvasWidth;
-			const posY = yMiddle - value;
+		frequency.forEach((value, index) => {
+			const posX = (index / length) * canvasWidth;
+			const posY = ((value - minDecibels) / amp) * canvasHeight;
 
-			const xMiddle = canvasWidth / 2;
-			const opacity = 1 - (Math.abs(posX - xMiddle) / xMiddle);
-			this.canvasContext.fillStyle = `rgba(${this.color.join(',')}, ${opacity})`;
-
-			this.canvasContext.fillRect(posX, posY - ((this.thickness - 1) / 2), 1, this.thickness);
+			canvasContext.fillRect(posX, canvasHeight - posY, thickness, posY);
 		});
 	}
 }
