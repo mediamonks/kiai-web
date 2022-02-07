@@ -1,6 +1,6 @@
 {
 	"name": "kiai-web",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"type": "module",
 	"main": "dist/index.js",
 	"repository": "https://github.com/mediamonks/kiai-web.git",
