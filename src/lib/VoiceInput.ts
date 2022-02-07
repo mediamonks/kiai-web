@@ -63,7 +63,7 @@ export default class VoiceInput extends PipeSource {
 			.pipe(text => this.publish(text));
 	}
 
-	public async start(): Promise<void> {
+	public async listen(): Promise<void> {
 		const { timeout } = this.options as TVoiceInputOptions;
 		await this.recorder.start();
 		this.emit('started');
