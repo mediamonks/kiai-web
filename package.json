@@ -30,7 +30,7 @@
 		"axios": "^0.22.0",
 		"lodash": "^4.17.21",
 		"md5": "^2.3.0",
-		"nanoid": "^3.1.29",
+		"nanoid": "^3.1.31",
 		"pitchfinder": "^2.3.1"
 	},
 	"engines": {
