@@ -53,6 +53,7 @@ export default class VoiceInput extends PipeSource {
 
 		amplitudeMeter.pipe(inputTrigger).pipe(inputState => {
 			if (!inputState || this.inputDetected) return;
+			console.log(`Input detected. Setting flag.`)
 			this.inputDetected = true;
 			window.clearTimeout(this.timeout);
 		});
@@ -60,6 +61,7 @@ export default class VoiceInput extends PipeSource {
 		amplitudeMeter.pipe(silenceTrigger).pipe(inputState => {
 			if (inputState) return;
 			if (this.inputDetected) {
+				console.log(`${silenceDelay}ms of silence detected. Stopping.`)
 				this.stop();
 				buffer.flush();
 			} else {

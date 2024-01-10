@@ -20,6 +20,7 @@ export default class RecorderV2 extends PipeSource {
 		sampleRate: 44100,
 		channelCount: 1,
 	};
+	protected micStream: MediaStream;
 
 	private schedulePublish(): void {
 		cancelAnimationFrame(this.publishTimer);
@@ -57,7 +58,7 @@ export default class RecorderV2 extends PipeSource {
 		}
 
 		if (!this.stream) {
-			const micStream = await navigator.mediaDevices.getUserMedia({
+			this.micStream = await navigator.mediaDevices.getUserMedia({
 				video: false,
 				audio: { sampleRate, channelCount },
 			});
@@ -74,6 +75,7 @@ export default class RecorderV2 extends PipeSource {
 		if (!this.isRecording) return;
 
 		cancelAnimationFrame(this.publishTimer);
+		this.micStream.getTracks().forEach(track => track.stop());
 		this.isRecording = false;
 	}
 }
